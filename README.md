@@ -134,6 +134,7 @@ The app talks to only a few places: Discord's public list of detectable games (a
 ## Troubleshooting
 
 - **Linux: the app window is blank or white.** The app already turns on the usual fix (`WEBKIT_DISABLE_DMABUF_RENDERER=1`). If it still happens, start it from a terminal and share the output in an issue.
+- **Linux: blank window and `Could not create default EGL display: EGL_BAD_PARAMETER`.** This happened with the 1.2.0 AppImage on up-to-date systems (Arch, CachyOS, Fedora, often on Wayland). Download the AppImage again from the latest release, which is fixed, or use the `.deb` / `.rpm`.
 - **Linux: the AppImage does not start and mentions FUSE.** Install FUSE 2 (see the Arch / other Linux steps above).
 - **Discord does not show the game.** Check Activity Privacy in Discord, check which Discord you have (see [Discord on Linux](#discord-on-linux)), and give Discord up to a minute to notice.
 - **Windows: "Windows protected your PC".** Choose More info, then Run anyway. The app is not code-signed.

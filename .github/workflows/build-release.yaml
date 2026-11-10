@@ -101,6 +101,14 @@ jobs:
           NO_STRIP: "true"   # linuxdeploy's old strip cannot read some newer binaries
         run: pnpm tauri build --bundles deb,rpm,appimage
 
+      # Without this the AppImage shows a blank window on up-to-date systems
+      # ("EGL_BAD_PARAMETER"). See the comment at the top of the script.
+      - name: Fix the AppImage for newer Linux systems
+        if: matrix.os == 'linux'
+        run: |
+          chmod +x scripts/fix-appimage.sh
+          scripts/fix-appimage.sh src-tauri/target/release/bundle/appimage/*.AppImage
+
       - name: Collect files with plain names
         run: |
           version=$(node -p "require('./src-tauri/tauri.conf.json').version")
