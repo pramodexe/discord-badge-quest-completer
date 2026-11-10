@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import AppHeader from './components/AppHeader.vue';
+import SystemCheck from './components/SystemCheck.vue';
 import { usePlaytime } from './composables/playtime';
 import { Pages, useGlobalState } from './composables/app-state';
 import { openLink } from './services/open-link';
@@ -11,10 +13,12 @@ import VarietyPage from './pages/VarietyPage.vue';
 
 const { page } = useGlobalState();
 usePlaytime(); // starts counting game time as soon as the app opens
+const systemCheck = ref<InstanceType<typeof SystemCheck> | null>(null);
 </script>
 
 <template>
   <div class="flex h-dvh flex-col overflow-hidden bg-ink">
+    <SystemCheck ref="systemCheck" />
     <AppHeader />
     <main class="flex-1 overflow-y-auto">
       <div class="flex min-h-full flex-col">
@@ -29,6 +33,7 @@ usePlaytime(); // starts counting game time as soon as the app opens
           Based on Discord Quest Completer by Mark Terence Tiglao, shared under the MIT license.
           <button type="button" class="ml-1 font-semibold text-muted underline-offset-2 hover:text-flame-hi hover:underline" @click="openLink(ORIGINAL_URL)">View the original</button>
           <button type="button" class="ml-3 font-semibold text-muted underline-offset-2 hover:text-flame-hi hover:underline" @click="openLink(SOURCE_URL)">Source code</button>
+          <button type="button" class="ml-3 font-semibold text-muted underline-offset-2 hover:text-flame-hi hover:underline" @click="systemCheck?.run(true)">Check setup</button>
         </footer>
       </div>
     </main>

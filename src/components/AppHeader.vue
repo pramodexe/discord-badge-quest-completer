@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Pages, useGlobalState } from '@/composables/app-state';
 import { useVarietyRun } from '@/composables/variety-run';
-import BannerFrame from './BannerFrame.vue';
 
 const { page, setPage, anyGameRunning } = useGlobalState();
 const variety = useVarietyRun();
@@ -42,9 +41,6 @@ const tabs = [
             {{ tab.label }}
           </button>
         </nav>
-      </div>
-      <div class="w-[min(54%,600px)] shrink-0">
-        <BannerFrame />
       </div>
     </div>
   </header>

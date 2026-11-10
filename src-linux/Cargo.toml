@@ -1,12 +1,12 @@
 [package]
 name = "src-linux"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
+# GTK 3, the same toolkit the main app needs on Linux, so the stand-in runs on
+# any desktop that can run the app (GTK 4 is missing on many KDE setups).
 [dependencies]
-gtk4 = "0.7"
-glib = "0.18"
-open = "5.0"
+gtk = "0.18"
 
 [[bin]]
 name = "src-linux"
@@ -18,6 +18,4 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
-overflow-checks = false
 debug = false
-rpath = false

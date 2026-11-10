@@ -2,12 +2,12 @@
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::{path::BaseDirectory, AppHandle, Manager};
 
+mod checks;
 mod icon;
 
 /// Builds a command for a console tool without flashing a console window.
-fn quiet_command(program: &str) -> std::process::Command {
+pub(crate) fn quiet_command(program: &str) -> std::process::Command {
     #[allow(unused_mut)]
     let mut cmd = std::process::Command::new(program);
     #[cfg(target_os = "windows")]
@@ -19,18 +19,14 @@ fn quiet_command(program: &str) -> std::process::Command {
     cmd
 }
 
-fn runner_resource_name() -> &'static str {
-    #[cfg(target_os = "windows")]
-    let runner_name = "data/src-win.exe";
-
-    #[cfg(target_os = "linux")]
-    let runner_name = "data/src-linux";
-
-    #[cfg(target_os = "macos")]
-    let runner_name = "data/src-darwin";
-
-    runner_name
-}
+// The stand-in program is built into the app itself, so the app is one file
+// with nothing to keep next to it. Run `pnpm sync:runner` before building.
+#[cfg(target_os = "windows")]
+const RUNNER: (&str, &[u8]) = ("src-win.exe", include_bytes!("../resources/src-win.exe"));
+#[cfg(target_os = "linux")]
+const RUNNER: (&str, &[u8]) = ("src-linux", include_bytes!("../resources/src-linux"));
+#[cfg(target_os = "macos")]
+const RUNNER: (&str, &[u8]) = ("src-darwin", include_bytes!("../resources/src-darwin"));
 
 fn is_app_bundle(executable_name: &str) -> bool {
     cfg!(target_os = "macos") && executable_name.ends_with(".app")
@@ -50,7 +46,8 @@ fn ensure_plain_relative(label: &str, value: &str) -> Result<(), String> {
     use std::path::Component;
     let ok = value
         .split(|c| c == '/' || c == '\\')
-        .all(|part| !part.is_empty() && part != "." && part != "..")
+        // ':' is refused too, so a Windows drive like C:\x is caught on every OS.
+        .all(|part| !part.is_empty() && part != "." && part != ".." && !part.contains(':'))
         && Path::new(value)
             .components()
             .all(|c| matches!(c, Component::Normal(_)));
@@ -71,11 +68,68 @@ fn game_folder_path(exe_dir: &Path, path: &str, app_id: i64) -> Result<PathBuf, 
         .join(normalized_path))
 }
 
-fn resolve_runner_template(handle: &AppHandle) -> Result<PathBuf, String> {
-    handle
-        .path()
-        .resolve(runner_resource_name(), BaseDirectory::Resource)
-        .map_err(|e| format!("Failed to resolve runner template: {}", e))
+/// The folder that holds `games/`. On Windows and macOS that is next to the app,
+/// as before. On Linux the app is often installed somewhere read-only
+/// (/usr/bin, or inside an AppImage), so it goes in the user's data folder
+/// instead: $XDG_DATA_HOME/discord-badge-quest-completer, which is usually
+/// ~/.local/share/discord-badge-quest-completer.
+pub(crate) fn games_base_dir() -> PathBuf {
+    #[cfg(target_os = "linux")]
+    {
+        let data_home = env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .filter(|p| p.is_absolute())
+            .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")));
+        if let Some(data_home) = data_home {
+            return data_home.join("discord-badge-quest-completer");
+        }
+    }
+    let exe_path = env::current_exe().unwrap_or_default();
+    exe_path
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_default()
+}
+
+/// Inside an AppImage the app's environment points GTK at libraries in the
+/// AppImage. The stand-in runs on the system's own GTK, so give it a clean one.
+pub(crate) fn clean_appimage_env(cmd: &mut std::process::Command) {
+    #[cfg(target_os = "linux")]
+    if env::var_os("APPIMAGE").is_some() || env::var_os("APPDIR").is_some() {
+        for var in [
+            "LD_LIBRARY_PATH", "LD_PRELOAD", "GTK_PATH", "GTK_DATA_PREFIX", "GTK_EXE_PREFIX",
+            "GTK_IM_MODULE_FILE", "GDK_PIXBUF_MODULE_FILE", "GIO_EXTRA_MODULES",
+            "GSETTINGS_SCHEMA_DIR", "GST_PLUGIN_SYSTEM_PATH", "GST_PLUGIN_SYSTEM_PATH_1_0",
+            "PYTHONHOME", "PYTHONPATH", "PERLLIB", "XDG_DATA_DIRS", "APPDIR", "APPIMAGE", "OWD", "ARGV0",
+        ] {
+            cmd.env_remove(var);
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = cmd;
+}
+
+/// Writes the built-in stand-in program to `<games base>/runner/` (only when it
+/// is missing or out of date) and returns its path, ready to be copied per game.
+pub(crate) fn resolve_runner_template() -> Result<PathBuf, String> {
+    let (file_name, bytes) = RUNNER;
+    let dir = games_base_dir().join("runner");
+    let path = dir.join(file_name);
+    let up_to_date = fs::read(&path).map(|old| old == bytes).unwrap_or(false);
+    if !up_to_date {
+        fs::create_dir_all(&dir).map_err(|e| format!("Failed to create runner folder: {}", e))?;
+        // Write to a temporary name first so a half-written file is never used.
+        let partial = dir.join(format!("{}.partial", file_name));
+        fs::write(&partial, bytes).map_err(|e| format!("Failed to write runner: {}", e))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&partial, fs::Permissions::from_mode(0o755))
+                .map_err(|e| format!("Failed to set runner permissions: {}", e))?;
+        }
+        fs::rename(&partial, &path).map_err(|e| format!("Failed to save runner: {}", e))?;
+    }
+    Ok(path)
 }
 
 fn make_macos_app_bundle(
@@ -160,17 +214,15 @@ fn greet(name: &str) -> String {
 
 #[tauri::command(rename_all = "snake_case")]
 async fn create_fake_game(
-    handle: tauri::AppHandle,
     path: &str,
     executable_name: &str,
     path_len: i64,
     app_id: i64,
     display_name: Option<String>,
 ) -> Result<String, String> {
-    // Must create in the same directory as the executable to avoid permission issues
-    // Get the executable directory to look for config file
-    let exe_path: std::path::PathBuf = env::current_exe().unwrap_or_default();
-    let exe_dir = exe_path.parent().unwrap_or_else(|| Path::new(""));
+    let exe_dir = games_base_dir();
+    let exe_dir = exe_dir.as_path();
+    let _ = path_len; // sent by the interface; not needed here
 
     if executable_name.is_empty() {
         return Err("Executable name is empty".to_string());
@@ -191,7 +243,7 @@ async fn create_fake_game(
         Err(e) => return Err(format!("Failed to create game folder: {}", e)),
     };
 
-    let resource_path = resolve_runner_template(&handle)?;
+    let resource_path = resolve_runner_template()?;
     println!("Creating dummy game executable from: {:?}", resource_path);
 
     if is_app_bundle(executable_name) {
@@ -262,8 +314,9 @@ async fn run_background_process(
     app_id: i64,
     icon_hash: Option<String>,
 ) -> Result<String, String> {
-    let exe_path = env::current_exe().unwrap_or_default();
-    let exe_dir = exe_path.parent().unwrap_or_else(|| Path::new(""));
+    let exe_dir = games_base_dir();
+    let exe_dir = exe_dir.as_path();
+    let _ = path_len; // sent by the interface; not needed here
 
     if executable_name.is_empty() {
         return Err("Executable name is empty".to_string());
@@ -303,7 +356,9 @@ async fn run_background_process(
         cmd.arg("--icon").arg(icon_path);
     }
     cmd.current_dir(game_folder_path);
-    
+
+    clean_appimage_env(&mut cmd);
+
     // Platform-specific process spawning
     #[cfg(unix)]
     {
@@ -313,7 +368,15 @@ async fn run_background_process(
     
     // Returns the process id so the caller can stop exactly this process later.
     match cmd.spawn() {
-        Ok(child) => Ok(child.id().to_string()),
+        Ok(mut child) => {
+            let pid = child.id();
+            // Wait for it in the background so a stopped game is cleaned up
+            // instead of staying behind as a zombie process.
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+            Ok(pid.to_string())
+        }
         Err(e) => Err(format!("Failed to start process: {}", e)),
     }
 }
@@ -451,7 +514,7 @@ async fn stop_process(exec_name: String) -> Result<(), String> {
     {
         let output = std::process::Command::new("pkill")
             .arg("-f")
-            .arg(&exec_name)
+            .arg(&process_name)
             .output()
             .map_err(|e| format!("Failed to execute pkill: {}", e))?;
 
@@ -492,7 +555,8 @@ pub fn run() {
             stop_process_pid,
             run_background_process,
             fetch_gamelist_gh_mirror,
-            fetch_gamelist_from_discord
+            fetch_gamelist_from_discord,
+            checks::system_check
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

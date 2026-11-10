@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Discord Badge and Quest Completer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "identifier": "me.markterence.discordquestcompleter",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -28,8 +28,7 @@
         "default-src": "'self' customprotocol: asset:",
         "connect-src": "ipc: http://ipc.localhost",
         "img-src": "'self' asset: http://asset.localhost blob: data: https://cdn.discordapp.com",
-        "style-src": "'unsafe-inline' 'self'",
-        "frame-src": "https://gameza.lk"
+        "style-src": "'unsafe-inline' 'self'"
       }
     }
   },
@@ -43,8 +42,10 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "resources/*"
-    ]
+    "shortDescription": "Show Discord a game as running, for Quests and badges.",
+    "category": "Utility",
+    "publisher": "pramodexe",
+    "homepage": "https://github.com/pramodexe/discord-badge-quest-completer",
+    "longDescription": "Makes Discord show you as playing a game without installing it, to finish Discord Quests and climb the Game Variety and Game Time badges. Works with the Discord desktop app on Windows and Linux."
   }
 }
