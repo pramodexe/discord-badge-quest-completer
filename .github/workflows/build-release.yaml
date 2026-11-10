@@ -1,12 +1,15 @@
 name: 'Build and release'
 
-# Run it by hand (Actions tab -> "Build and release" -> Run workflow), or push a
-# version tag such as v1.1.0. It builds Windows and Linux and creates a DRAFT
-# release with every file and a SHA-256 checksum list. Check it, then publish it.
+# Run it by hand: Actions tab -> "Build and release" -> Run workflow.
+# It builds Windows and Linux and creates a DRAFT release (tag v<version> from
+# src-tauri/tauri.conf.json) with every file and a SHA-256 checksum list.
+# Check it, then publish it.
+#
+# There is deliberately no "on tag push" trigger: publishing a release creates
+# its tag, and that would start a second build that turns the release back
+# into a draft.
 on:
   workflow_dispatch:
-  push:
-    tags: ['v*']
 
 permissions:
   contents: write

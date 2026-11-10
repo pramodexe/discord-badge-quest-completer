@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 mod checks;
 mod icon;
+mod library;
 
 /// Builds a command for a console tool without flashing a console window.
 pub(crate) fn quiet_command(program: &str) -> std::process::Command {
@@ -556,7 +557,9 @@ pub fn run() {
             run_background_process,
             fetch_gamelist_gh_mirror,
             fetch_gamelist_from_discord,
-            checks::system_check
+            checks::system_check,
+            library::load_library,
+            library::save_library
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

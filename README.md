@@ -91,7 +91,8 @@ If the app says you are playing but Discord does not show it, check which Discor
 1. Keep the Discord desktop app open and signed in on the same computer.
 2. In Discord, open **Settings, then Activity Privacy**, and turn on sharing your detected activity.
 3. **Library**: search for a game, add it, press Play. A small window with the game's name opens, and Discord shows you as playing it. Stop it, or close that window, when you are done.
-4. **Game Variety**: set how many games, minutes per game and break, then press Start. One game runs at a time, and each is closed before the next starts. If a game cannot be closed, the run stops instead of starting another.
+4. Games you add to **Your games** are saved and come back the next time you open the app.
+5. **Game Variety**: set how many games, minutes per game and break, then press Start. One game runs at a time, and each is closed before the next starts. If a game cannot be closed, the run stops instead of starting another.
 
 ## Screenshots
 
@@ -123,6 +124,8 @@ The stand-ins only do this: stay open. They are kept in a `games` folder you can
 
 - **Windows:** next to the app (portable) or in the install folder.
 - **Linux:** `~/.local/share/discord-badge-quest-completer/games`.
+
+Your **Your games** list is saved as `library.json` in the same place: next to the app on Windows (portable) or in the install folder, and in `~/.local/share/discord-badge-quest-completer/` on Linux. Back up that file to keep your list, or delete it to start over. If it is ever damaged, the app keeps a copy as `library.json.bad` and starts with an empty list.
 
 The stand-in program is built into the app, so the app is a single file with nothing else to keep next to it.
 
@@ -184,13 +187,13 @@ Project layout: `src/` is the Vue interface, `src-tauri/` is the Rust app, `src-
 
 ### Making a release
 
-The **Build and release** GitHub Actions workflow builds every download and creates a draft release with checksums. Run it from the Actions tab, or push a version tag:
+The **Build and release** GitHub Actions workflow builds every download and creates a draft release with checksums:
 
-```bash
-git tag v1.1.0 && git push origin v1.1.0
-```
+1. Update `version` in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `package.json`, commit and push.
+2. Actions tab, **Build and release**, **Run workflow** (on `main`).
+3. When it finishes, open the draft on the Releases tab, try the files, then press **Publish release**.
 
-Update `version` in `src-tauri/tauri.conf.json` first. The Linux files are built on Ubuntu 22.04 so they also run on newer systems.
+The release tag (`v` plus the version) is created when you publish. The Linux files are built on Ubuntu 22.04 so they also run on newer systems.
 
 ## Credits and license
 

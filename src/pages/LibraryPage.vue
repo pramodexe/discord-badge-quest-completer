@@ -18,6 +18,7 @@ import SyncNotice from '@/components/SyncNotice.vue';
 import { TIME_BADGE } from '@/constants/badges';
 import { usePlaytime } from '@/composables/playtime';
 import { useBadgeBaseline } from '@/composables/badge-baseline';
+import { useLibrary } from '@/composables/library';
 import NumberField from '@/components/NumberField.vue';
 
 const { gameDB, fetchGameList, isLoadingGH, isLoadingDiscord, isLoadingBundled } = useFetchGameList();
@@ -58,7 +59,8 @@ const fuseOptions = computed<UseFuseOptions<Game>>(() => ({
 const { results: searchResults } = useFuse(debouncedQuery, gameDB, fuseOptions);
 
 // --- your games ------------------------------------------------------------
-const gameList = ref<Game[]>([]);
+// Saved to library.json and restored the next time the app opens.
+const { games: gameList } = useLibrary();
 const selectedUid = ref<string | null>(null);
 const selectedGame = computed(() => gameList.value.find(g => g.uid === selectedUid.value) ?? null);
 const running = ref(new Map<string, RunningGame>());
